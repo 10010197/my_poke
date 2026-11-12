@@ -29,6 +29,9 @@
 - 테스트할 수 있는 작은 함수(예: 속성 이름 → 색상 값)가 생기면
 app.py 밖의 파일(pokedex.py)에 두고, tests 폴더에 테스트를 먼저 쓴다.
 파일과 폴더가 없으면 새로 만든다.
+- 테스트는 파이썬 기본 unittest로 쓴다. 파일 이름은 tests/test_<대상>.py,
+unittest.TestCase를 상속한 클래스 안에 test_로 시작하는 메서드로 작성한다.
+실행은 `python -m unittest discover -s tests -v`로 한다. (pytest 등 별도 패키지는 쓰지 않는다.)
 - 순서: 실패하는 것을 확인하고 [test] 커밋, 구현해서 통과하면 [feat] 커밋.
 - 이미 있는 테스트를 지우거나 느슨하게 바꾸지 않는다. 실패하면 코드를 고친다.
 - 화면(app.py)은 테스트 대신, 눈으로 확인하는 방법을 Pull Request에 적는다.
