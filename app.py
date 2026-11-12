@@ -6,7 +6,7 @@ import requests
 import streamlit as st
 
 GRAPHQL_URL = "https://graphql.pokeapi.co/v1beta2"
-LOGO_PATH = Path(__file__).parent / "assets" / "logo.jpg"
+LOGO_PATH = Path(__file__).parent / "assets" / "logo.png"
 TITLE_TEXT = "포켓몬 도감"
 
 QUERY = """
@@ -222,7 +222,7 @@ def render_title():
         return f'<h1 class="dex-title">{TITLE_TEXT}</h1>'
     return (
         '<div class="dex-logo">'
-        f'<img src="data:image/jpeg;base64,{data}" alt="{TITLE_TEXT}">'
+        f'<img src="data:image/png;base64,{data}" alt="{TITLE_TEXT}">'
         "</div>"
     )
 
