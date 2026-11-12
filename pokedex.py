@@ -1,5 +1,7 @@
 """Small, testable helpers for the Pokedex page."""
 
+import math
+
 # Type badge colors, from the color chart in issue #9 ("보통" column).
 # Keys are the Korean type names PokeAPI returns.
 TYPE_COLORS = {
@@ -49,3 +51,94 @@ def badge_text_color(background):
     contrast_with_white = 1.05 / (lum + 0.05)
     contrast_with_black = (lum + 0.05) / 0.05
     return WHITE if contrast_with_white > contrast_with_black else BLACK
+
+
+# ---- Detail dialog (issue #10) ----
+
+# Radar chart axes, clockwise from the top: (PokeAPI stat name, Korean label).
+STAT_AXES = [
+    ("hp", "HP"),
+    ("attack", "공격"),
+    ("defense", "방어"),
+    ("special-attack", "특수공격"),
+    ("special-defense", "특수방어"),
+    ("speed", "스피드"),
+]
+
+MAX_BASE_STAT = 255
+
+
+def stats_to_radar(stats, max_value=MAX_BASE_STAT):
+    """Base stats -> six radar points in STAT_AXES order.
+
+    `stats` is a list of {"stat": <PokeAPI name>, "value": <base stat>}.
+    Each point is {"stat", "label", "value", "ratio"}; ratio is value / max_value,
+    capped at 1. Missing stats count as 0.
+    """
+    values = {s["stat"]: s["value"] for s in stats}
+    data = []
+    for stat, label in STAT_AXES:
+        value = values.get(stat, 0)
+        data.append(
+            {
+                "stat": stat,
+                "label": label,
+                "value": value,
+                "ratio": min(value / max_value, 1.0) if max_value else 0,
+            }
+        )
+    return data
+
+
+def radar_points(ratios, radius, cx, cy):
+    """Ratios -> (x, y) polygon corners, first axis straight up, then clockwise."""
+    count = len(ratios)
+    points = []
+    for i, ratio in enumerate(ratios):
+        angle = 2 * math.pi * i / count
+        points.append(
+            (cx + radius * ratio * math.sin(angle), cy - radius * ratio * math.cos(angle))
+        )
+    return points
+
+
+def last_level_up_moves(moves, count=4):
+    """The `count` moves learned last by leveling up, in level order.
+
+    `moves` is a list of {"name", "type", "level", "order", "version_group"}.
+    Learnsets differ by game, so only the latest version group is used. A move
+    listed more than once counts at its highest level; ties go by "order".
+    """
+    if not moves:
+        return []
+    latest = max(m["version_group"] for m in moves)
+    best = {}
+    for m in moves:
+        if m["version_group"] != latest:
+            continue
+        current = best.get(m["name"])
+        if current is None or m["level"] > current["level"]:
+            best[m["name"]] = m
+    ordered = sorted(best.values(), key=lambda m: (m["level"], m["order"] or 0))
+    return [{"name": m["name"], "type": m["type"], "level": m["level"]} for m in ordered[-count:]]
+
+
+def evolution_stages(species):
+    """Species of one evolution chain -> stages, first form first.
+
+    Each species is a dict with "id" and "evolves_from" (id or None). Species in
+    the same stage (branches like Eevee's) are sorted by id.
+    """
+    by_id = {s["id"]: s for s in species}
+
+    def depth(s):
+        d = 0
+        while s["evolves_from"] in by_id:
+            s = by_id[s["evolves_from"]]
+            d += 1
+        return d
+
+    stages = {}
+    for s in sorted(species, key=lambda s: s["id"]):
+        stages.setdefault(depth(s), []).append(s)
+    return [stages[d] for d in sorted(stages)]
