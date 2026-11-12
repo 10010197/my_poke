@@ -1,18 +1,21 @@
 import base64
 import html
 from pathlib import Path
+from urllib.parse import urlencode
 
 import requests
 import streamlit as st
 
 from pokedex import (
     REGIONS,
+    TYPE_COLORS,
     badge_text_color,
     evolution_stages,
     last_level_up_moves,
     radar_points,
     region_of,
     region_range,
+    search_pokemon,
     stats_to_radar,
     type_color,
 )
@@ -359,6 +362,106 @@ STYLE = """
 """
 
 
+# ---- Search and filter (issue #30) ----
+# The search box and filters live in the URL (?q=…&gen=1,2&type=물,비행) as well
+# as in widget state, because clicking a card reloads the page and would
+# otherwise forget them.
+
+SEARCH_PARAMS = ("q", "gen", "type")
+GENERATION_LABELS = [f"{n}세대 {region}" for n, region in enumerate(REGIONS, start=1)]
+TYPE_NAMES = list(TYPE_COLORS)
+
+SEARCH_STYLE = """
+<style>
+.stTextInput input { border-radius: 12px; }
+.stMultiSelect [data-baseweb="select"] > div { border-radius: 12px; }
+.dex-result-count { font-size: 13px; font-weight: 500; color: #6a6a6a; margin: 8px 0 16px; }
+.dex-empty {
+  background: #f5f0e0; border-radius: 16px; padding: 32px 24px;
+  text-align: center; font-size: 16px; color: #3a3a3a;
+}
+</style>
+"""
+
+
+def card_href(pokemon_id):
+    """Link for a card: keeps the current search in the URL and adds ?pokemon=<id>."""
+    params = {k: st.query_params[k] for k in SEARCH_PARAMS if st.query_params.get(k)}
+    params["pokemon"] = pokemon_id
+    return "?" + urlencode(params)
+
+
+def _split(value):
+    return [v for v in (value or "").split(",") if v]
+
+
+def init_search_state():
+    """Fill the widgets from the URL the first time this session runs."""
+    if "search_q" in st.session_state:
+        return
+    st.session_state.search_q = st.query_params.get("q", "")
+    st.session_state.search_gen = [
+        GENERATION_LABELS[int(n) - 1]
+        for n in _split(st.query_params.get("gen"))
+        if n.isdigit() and 1 <= int(n) <= len(GENERATION_LABELS)
+    ]
+    st.session_state.search_type = [
+        t for t in _split(st.query_params.get("type")) if t in TYPE_NAMES
+    ][:2]
+
+
+def sync_search_params():
+    """Copy the widgets into the URL (empty values are removed)."""
+    values = {
+        "q": st.session_state.search_q.strip(),
+        "gen": ",".join(
+            str(GENERATION_LABELS.index(label) + 1) for label in st.session_state.search_gen
+        ),
+        "type": ",".join(st.session_state.search_type),
+    }
+    for key, value in values.items():
+        if value:
+            st.query_params[key] = value
+        else:
+            st.query_params.pop(key, None)
+
+
+def search_inputs():
+    """The search box and filters; returns (query, generation numbers, types)."""
+    init_search_state()
+    col_q, col_gen, col_type = st.columns([2, 1, 1])
+    with col_q:
+        st.text_input(
+            "검색",
+            key="search_q",
+            placeholder="이름 또는 번호 (예: 피카, 25, No.25)",
+            on_change=sync_search_params,
+        )
+    with col_gen:
+        st.multiselect(
+            "세대", GENERATION_LABELS, key="search_gen", placeholder="전체",
+            on_change=sync_search_params,
+        )
+    with col_type:
+        st.multiselect(
+            "타입 (최대 2개)", TYPE_NAMES, key="search_type", max_selections=2,
+            placeholder="전체", on_change=sync_search_params,
+        )
+    generations = [GENERATION_LABELS.index(label) + 1 for label in st.session_state.search_gen]
+    return st.session_state.search_q, generations, st.session_state.search_type
+
+
+def render_results(results):
+    """Search results as one card grid with a count, or an empty-state message."""
+    if not results:
+        return '<div class="dex-empty">찾는 포켓몬이 없습니다. 검색어나 필터를 바꿔 보세요.</div>'
+    cards = "".join(render_card(i, p) for i, p in enumerate(results))
+    return (
+        f'<div class="dex-result-count">{len(results)}마리를 찾았습니다</div>'
+        f'<div class="dex-grid">{cards}</div>'
+    )
+
+
 def render_card(index, p):
     bg, fg, muted = CARD_COLORS[index % len(CARD_COLORS)]
     image = (
@@ -375,7 +478,7 @@ def render_card(index, p):
     # A plain link: st.html strips JavaScript, so the click is passed to Python
     # through the ?pokemon=<id> query parameter, which opens the detail dialog.
     return (
-        f'<a class="clay-link" href="?pokemon={p["id"]}" target="_self">'
+        f'<a class="clay-link" href="{html.escape(card_href(p["id"]))}" target="_self">'
         f'<div class="clay-card" style="background:{bg}; color:{fg};">'
         f"{image}"
         f'<div class="clay-no" style="color:{muted};">NO.{p["id"]:03d}</div>'
@@ -652,20 +755,32 @@ st.session_state.loaded_regions = max(
 
 loaded = REGIONS[: st.session_state.loaded_regions]
 
-st.html(STYLE + DETAIL_STYLE + hover_style() + render_title() + render_regions(loaded))
+st.html(STYLE + DETAIL_STYLE + SEARCH_STYLE + hover_style() + render_title())
 
-if len(loaded) < len(REGIONS):
-    next_region = REGIONS[len(loaded)]
-    st.button(
-        f"다음 지역 불러오기 ({next_region})",
-        key="load_next_region",
-        on_click=load_next_region,
-    )
+query, generations, types = search_inputs()
+searching = bool(query.strip() or generations or types)
+
+if searching:
+    # Search covers every region, not just the loaded ones (each region is cached).
+    with st.spinner("포켓몬을 모두 불러오는 중…"):
+        pokemon_list = [p for region in REGIONS for p in fetch_pokemon(*region_range(region))]
+    st.html(render_results(search_pokemon(pokemon_list, query, generations, types)))
+else:
+    st.html(render_regions(loaded))
+
+    if len(loaded) < len(REGIONS):
+        next_region = REGIONS[len(loaded)]
+        st.button(
+            f"다음 지역 불러오기 ({next_region})",
+            key="load_next_region",
+            on_click=load_next_region,
+        )
+
+    # Every Pokemon currently on the page (all loaded regions; fetch_pokemon is cached).
+    pokemon_list = [p for region in loaded for p in fetch_pokemon(*region_range(region))]
 
 st.html('<p class="dex-credit">데이터: PokeAPI</p>')
 
-# Every Pokemon currently on the page (all loaded regions; fetch_pokemon is cached).
-pokemon_list = [p for region in loaded for p in fetch_pokemon(*region_range(region))]
 selected = selected_pokemon(pokemon_list)
 if selected is not None:
     show_detail(selected)

@@ -1,6 +1,7 @@
 """Small, testable helpers for the Pokedex page."""
 
 import math
+import re
 
 # Type badge colors, from the color chart in issue #9 ("보통" column).
 # Keys are the Korean type names PokeAPI returns.
@@ -176,3 +177,48 @@ def evolution_stages(species):
     for s in sorted(species, key=lambda s: s["id"]):
         stages.setdefault(depth(s), []).append(s)
     return [stages[d] for d in sorted(stages)]
+
+
+# ---- Search and filter (issue #30) ----
+
+_DEX_NUMBER = re.compile(r"^(?:no\.?|#)?\s*(\d+)$", re.IGNORECASE)
+
+
+def parse_dex_number(text):
+    """Dex number typed in the search box ("25", "025", "No.25", "#25"), or None."""
+    if text is None:
+        return None
+    match = _DEX_NUMBER.match(text.strip())
+    return int(match.group(1)) if match else None
+
+
+def generation_of(pokemon_id):
+    """Generation number (1 = 관동 ... 9 = 팔데아) of a dex number, or None."""
+    region = region_of(pokemon_id)
+    return REGIONS.index(region) + 1 if region else None
+
+
+def search_pokemon(pokemon_list, query="", generations=(), types=()):
+    """Pokemon matching every given condition; empty conditions filter nothing.
+
+    - query: a dex number matches exactly that number; any other text matches
+      names that contain it.
+    - generations: the Pokemon must be in one of them.
+    - types: the Pokemon must have every one of them (up to 2 in the UI).
+    """
+    query = (query or "").strip()
+    number = parse_dex_number(query) if query else None
+    wanted_generations = set(generations)
+    result = []
+    for p in pokemon_list:
+        if number is not None:
+            if p["id"] != number:
+                continue
+        elif query and query.lower() not in p["name"].lower():
+            continue
+        if wanted_generations and generation_of(p["id"]) not in wanted_generations:
+            continue
+        if any(t not in p["types"] for t in types):
+            continue
+        result.append(p)
+    return result
