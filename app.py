@@ -9,6 +9,15 @@ GRAPHQL_URL = "https://graphql.pokeapi.co/v1beta2"
 LOGO_PATH = Path(__file__).parent / "assets" / "logo.png"
 TITLE_TEXT = "포켓몬 도감"
 
+# Card image hover effect. Switch between the two options from issue #15:
+#   "grayscale": image is gray, turns to color on hover
+#   "opacity":   image is at 0.3 opacity, turns to 1.0 on hover
+HOVER_STYLE = "opacity"
+HOVER_EFFECTS = {
+    "grayscale": ("filter: grayscale(1);", "filter: grayscale(0);"),
+    "opacity": ("opacity: 0.3;", "opacity: 1;"),
+}
+
 QUERY = """
 query Gen1Pokedex {
   pokemonspecies(where: {id: {_gte: 1, _lte: 151}}, order_by: {id: asc}) {
@@ -209,6 +218,23 @@ def render_card(index, p):
     )
 
 
+def hover_style():
+    """CSS for the card image hover effect selected by HOVER_STYLE.
+
+    Only applies on devices with a real hover pointer (mouse), so phones and
+    tablets always see the full-color, fully opaque image.
+    """
+    rest, hover = HOVER_EFFECTS[HOVER_STYLE]
+    return (
+        "<style>"
+        "@media (hover: hover) and (pointer: fine) {"
+        f".clay-card img {{ {rest} transition: filter 0.25s ease, opacity 0.25s ease; }}"
+        f".clay-card:hover img {{ {hover} }}"
+        "}"
+        "</style>"
+    )
+
+
 def render_title():
     """Logo image from assets/.
 
@@ -234,6 +260,7 @@ pokemon_list = fetch_pokemon()
 cards = "".join(render_card(i, p) for i, p in enumerate(pokemon_list))
 st.html(
     STYLE
+    + hover_style()
     + render_title()
     + f'<div class="dex-grid">{cards}</div>'
     + '<p class="dex-credit">데이터: PokeAPI</p>'
