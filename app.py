@@ -147,6 +147,15 @@ STYLE = """
   padding: 4px 12px;
   border-radius: 9999px;
 }
+
+.dex-credit {
+  margin: 32px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #6a6a6a;
+  text-align: center;
+}
 </style>
 """
 
@@ -178,4 +187,5 @@ st.html(
     STYLE
     + '<h1 class="dex-title">포켓몬 도감</h1>'
     + f'<div class="dex-grid">{cards}</div>'
+    + '<p class="dex-credit">데이터: PokeAPI</p>'
 )
