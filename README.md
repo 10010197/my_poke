@@ -1,5 +1,7 @@
 # 포켓몬 도감
 
+**배포 주소:** https://mypoke-porc9mctvvecmv2vywyqpe.streamlit.app/
+
 1세대 포켓몬(No.001 ~ No.151)을 한눈에 볼 수 있는 Streamlit 웹 페이지입니다.
 [PokeAPI](https://pokeapi.co/)의 GraphQL API에서 데이터를 받아 가로 8칸 바둑판 형태로 보여줍니다.
 
