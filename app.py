@@ -60,6 +60,8 @@ def fetch_pokemon():
     return result
 
 
+CREAM = "#f5f0e0"  # surface-card; also the badge background
+
 # Clay feature-card palette, cycled card by card: (background, text, muted text)
 CARD_COLORS = [
     ("#ff4d8b", "#ffffff", "rgba(255,255,255,0.8)"),  # brand-pink
@@ -67,7 +69,7 @@ CARD_COLORS = [
     ("#b8a4ed", "#0a0a0a", "#3a3a3a"),  # brand-lavender
     ("#ffb084", "#0a0a0a", "#3a3a3a"),  # brand-peach
     ("#e8b94a", "#0a0a0a", "#3a3a3a"),  # brand-ochre
-    ("#f5f0e0", "#0a0a0a", "#6a6a6a"),  # surface-card (cream)
+    (CREAM, "#0a0a0a", "#6a6a6a"),  # surface-card (cream)
 ]
 
 STYLE = """
@@ -148,6 +150,12 @@ STYLE = """
   border-radius: 9999px;
 }
 
+/* Cream badges on a cream card: add a gray outline so they stay visible */
+.clay-badge--outlined {
+  border: 1px solid #9a9a9a;
+  padding: 3px 11px;
+}
+
 .dex-credit {
   margin: 32px 0 0;
   font-size: 13px;
@@ -167,7 +175,8 @@ def render_card(index, p):
         if p["image"]
         else ""
     )
-    badges = "".join(f'<span class="clay-badge">{html.escape(t)}</span>' for t in p["types"])
+    badge_class = "clay-badge clay-badge--outlined" if bg == CREAM else "clay-badge"
+    badges = "".join(f'<span class="{badge_class}">{html.escape(t)}</span>' for t in p["types"])
     return (
         f'<div class="clay-card" style="background:{bg}; color:{fg};">'
         f"{image}"
