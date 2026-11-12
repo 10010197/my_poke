@@ -14,6 +14,7 @@ from pokedex import (
     last_level_up_moves,
     radar_points,
     region_of,
+    next_region,
     region_range,
     search_pokemon,
     stats_to_radar,
@@ -750,6 +751,54 @@ def scroll_to_card(pokemon_id):
     )
 
 
+LOAD_BUTTON_PREFIX = "다음 지역 불러오기"
+
+
+def auto_load_script():
+    """Press the "다음 지역 불러오기" button by itself when it nears the screen (issue #29).
+
+    Runs once per page (a guard on window keeps one watcher across reruns).
+    - Fires when the button's top is within one screen below the visible area.
+    - Fires at most once per card count, so one press loads exactly one region:
+      the next press waits until the new cards are on the page.
+    - Does nothing while the detail dialog is open, and does nothing when there
+      is no button (search results, or 팔데아 already loaded).
+    The button stays visible, so it can still be pressed by hand.
+    While loading, a small "불러오는 중…" notice shows at the bottom of the screen.
+    It is a separate element, because Streamlit owns the button's own text.
+    """
+    st.html(
+        "<script>"
+        "(function () {"
+        "  if (window.__dexAutoLoad) return;"
+        "  const notice = document.createElement('div');"
+        "  notice.textContent = '불러오는 중…';"
+        "  notice.style.cssText = 'position:fixed;left:50%;bottom:24px;"
+        "transform:translateX(-50%);background:#0a0a0a;color:#fff;font-size:13px;"
+        "font-weight:500;padding:8px 16px;border-radius:9999px;z-index:1000;display:none;';"
+        "  document.body.appendChild(notice);"
+        "  const state = window.__dexAutoLoad = {lastCount: -1, loading: false};"
+        "  setInterval(function () {"
+        "    const count = document.querySelectorAll('.clay-link').length;"
+        "    if (state.loading && count !== state.lastCount) {"
+        "      state.loading = false; notice.style.display = 'none';"
+        "    }"
+        "    if (document.querySelector('[role=dialog]')) return;"
+        "    const btn = [...document.querySelectorAll('button')]"
+        f"      .find(b => b.innerText.trim().startsWith('{LOAD_BUTTON_PREFIX}'));"
+        "    if (!btn || btn.disabled) { if (!btn) notice.style.display = 'none'; return; }"
+        "    if (count === state.lastCount) return;"
+        "    if (btn.getBoundingClientRect().top > window.innerHeight * 2) return;"
+        "    state.lastCount = count; state.loading = true;"
+        "    notice.style.display = 'block';"
+        "    btn.click();"
+        "  }, 400);"
+        "})();"
+        "</script>",
+        unsafe_allow_javascript=True,
+    )
+
+
 def load_next_region():
     st.session_state.loaded_regions += 1
 
@@ -793,13 +842,14 @@ if searching:
 else:
     st.html(render_regions(loaded))
 
-    if len(loaded) < len(REGIONS):
-        next_region = REGIONS[len(loaded)]
+    upcoming = next_region(len(loaded))
+    if upcoming is not None:
         st.button(
-            f"다음 지역 불러오기 ({next_region})",
+            f"{LOAD_BUTTON_PREFIX} ({upcoming})",
             key="load_next_region",
             on_click=load_next_region,
         )
+        auto_load_script()
 
     # Every Pokemon currently on the page (all loaded regions; fetch_pokemon is cached).
     pokemon_list = [p for region in loaded for p in fetch_pokemon(*region_range(region))]
