@@ -5,6 +5,8 @@ from pathlib import Path
 import requests
 import streamlit as st
 
+from pokedex import badge_text_color, type_color
+
 GRAPHQL_URL = "https://graphql.pokeapi.co/v1beta2"
 LOGO_PATH = Path(__file__).parent / "assets" / "logo.png"
 TITLE_TEXT = "포켓몬 도감"
@@ -207,7 +209,12 @@ def render_card(index, p):
         else ""
     )
     badge_class = "clay-badge clay-badge--outlined" if bg == CREAM else "clay-badge"
-    badges = "".join(f'<span class="{badge_class}">{html.escape(t)}</span>' for t in p["types"])
+    badges = "".join(
+        f'<span class="{badge_class}" '
+        f'style="background:{type_color(t)}; color:{badge_text_color(type_color(t))};">'
+        f"{html.escape(t)}</span>"
+        for t in p["types"]
+    )
     return (
         f'<div class="clay-card" style="background:{bg}; color:{fg};">'
         f"{image}"
