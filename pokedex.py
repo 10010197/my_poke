@@ -222,3 +222,13 @@ def search_pokemon(pokemon_list, query="", generations=(), types=()):
             continue
         result.append(p)
     return result
+
+
+# ---- Loading more regions while scrolling (issue #29) ----
+
+
+def next_region(loaded_count):
+    """Region to load after the first `loaded_count` regions, or None after the last one."""
+    if loaded_count < 0:
+        raise ValueError(f"불러온 지역 수가 음수입니다: {loaded_count}")
+    return REGIONS[loaded_count] if loaded_count < len(REGIONS) else None
