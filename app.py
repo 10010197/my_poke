@@ -1,9 +1,13 @@
+import base64
 import html
+from pathlib import Path
 
 import requests
 import streamlit as st
 
 GRAPHQL_URL = "https://graphql.pokeapi.co/v1beta2"
+LOGO_PATH = Path(__file__).parent / "assets" / "logo.jpg"
+TITLE_TEXT = "포켓몬 도감"
 
 QUERY = """
 query Gen1Pokedex {
@@ -99,6 +103,24 @@ STYLE = """
   margin: 0 0 32px;
 }
 
+.dex-logo {
+  text-align: center;
+  margin: 0 0 32px;
+}
+
+/* Scale down on narrow screens instead of cropping. The font styles apply to
+   the alt text, so a broken image still reads as the title. */
+.dex-logo img {
+  display: inline-block;
+  width: 360px;
+  max-width: 100%;
+  height: auto;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  color: #0a0a0a;
+}
+
 .dex-grid {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
@@ -187,6 +209,24 @@ def render_card(index, p):
     )
 
 
+def render_title():
+    """Logo image from assets/.
+
+    If the file can't be read, the text title is shown instead. If the browser
+    can't draw the image, its alt text (styled like the title) shows instead.
+    st.html strips onerror handlers, so there is no client-side swap.
+    """
+    try:
+        data = base64.b64encode(LOGO_PATH.read_bytes()).decode("ascii")
+    except OSError:
+        return f'<h1 class="dex-title">{TITLE_TEXT}</h1>'
+    return (
+        '<div class="dex-logo">'
+        f'<img src="data:image/jpeg;base64,{data}" alt="{TITLE_TEXT}">'
+        "</div>"
+    )
+
+
 st.set_page_config(page_title="포켓몬 도감", layout="wide")
 
 pokemon_list = fetch_pokemon()
@@ -194,7 +234,7 @@ pokemon_list = fetch_pokemon()
 cards = "".join(render_card(i, p) for i, p in enumerate(pokemon_list))
 st.html(
     STYLE
-    + '<h1 class="dex-title">포켓몬 도감</h1>'
+    + render_title()
     + f'<div class="dex-grid">{cards}</div>'
     + '<p class="dex-credit">데이터: PokeAPI</p>'
 )
