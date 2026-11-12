@@ -11,6 +11,7 @@ from pokedex import (
     evolution_stages,
     last_level_up_moves,
     radar_points,
+    region_of,
     region_range,
     stats_to_radar,
     type_color,
@@ -615,6 +616,19 @@ def load_next_region():
     st.session_state.loaded_regions += 1
 
 
+def regions_needed_for_selection():
+    """How many regions must be loaded to show the Pokemon in ?pokemon=<id> (0 if none).
+
+    Clicking a card is a link that reloads the page, which resets session_state
+    to 관동 only; this brings back every region up to the clicked Pokemon.
+    """
+    try:
+        region = region_of(int(st.query_params.get("pokemon")))
+    except (TypeError, ValueError):
+        return 0
+    return REGIONS.index(region) + 1 if region else 0
+
+
 st.set_page_config(page_title="포켓몬 도감", layout="wide")
 
 # How many regions (from the start of REGIONS) are shown. Starts with 관동 only.
@@ -622,6 +636,9 @@ st.set_page_config(page_title="포켓몬 도감", layout="wide")
 # itself; a button at the end of the list loads the next region instead.
 if "loaded_regions" not in st.session_state:
     st.session_state.loaded_regions = 1
+st.session_state.loaded_regions = max(
+    st.session_state.loaded_regions, regions_needed_for_selection()
+)
 
 loaded = REGIONS[: st.session_state.loaded_regions]
 
