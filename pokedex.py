@@ -53,6 +53,31 @@ def badge_text_color(background):
     return WHITE if contrast_with_white > contrast_with_black else BLACK
 
 
+# National dex number range (first, last; both inclusive) of each region,
+# in the order the page loads them while scrolling down.
+REGION_RANGES = {
+    "관동": (1, 151),
+    "성도": (152, 251),
+    "호연": (252, 386),
+    "신오": (387, 493),
+    "하나": (494, 649),
+    "칼로스": (650, 721),
+    "알로라": (722, 809),
+    "가라르": (810, 905),
+    "팔데아": (906, 1025),
+}
+
+REGIONS = list(REGION_RANGES)
+
+
+def region_range(region_name):
+    """(first, last) national dex numbers of a region; ValueError if unknown."""
+    try:
+        return REGION_RANGES[region_name]
+    except KeyError:
+        raise ValueError(f"알 수 없는 지역: {region_name}") from None
+
+
 # ---- Detail dialog (issue #10) ----
 
 # Radar chart axes, clockwise from the top: (PokeAPI stat name, Korean label).

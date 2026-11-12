@@ -6,10 +6,12 @@ import requests
 import streamlit as st
 
 from pokedex import (
+    REGIONS,
     badge_text_color,
     evolution_stages,
     last_level_up_moves,
     radar_points,
+    region_range,
     stats_to_radar,
     type_color,
 )
@@ -28,8 +30,8 @@ HOVER_EFFECTS = {
 }
 
 QUERY = """
-query Gen1Pokedex {
-  pokemonspecies(where: {id: {_gte: 1, _lte: 151}}, order_by: {id: asc}) {
+query RegionPokedex($first: Int!, $last: Int!) {
+  pokemonspecies(where: {id: {_gte: $first, _lte: $last}}, order_by: {id: asc}) {
     id
     name
     pokemonspeciesnames(where: {language: {name: {_eq: "ko"}}}) { name }
@@ -48,8 +50,13 @@ query Gen1Pokedex {
 
 
 @st.cache_data(ttl=60 * 60 * 24)
-def fetch_pokemon():
-    res = requests.post(GRAPHQL_URL, json={"query": QUERY}, timeout=30)
+def fetch_pokemon(first, last):
+    """Species with national dex numbers first..last (inclusive), cached per range."""
+    res = requests.post(
+        GRAPHQL_URL,
+        json={"query": QUERY, "variables": {"first": first, "last": last}},
+        timeout=30,
+    )
     res.raise_for_status()
     body = res.json()
     if "errors" in body:
@@ -281,6 +288,52 @@ STYLE = """
   line-height: 1.4;
   padding: 4px 12px;
   border-radius: 9999px;
+}
+
+/* Region divider between two regions' grids: hairline, name, hairline. */
+.dex-region {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 48px 0 24px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+  color: #0a0a0a;
+}
+
+.dex-region::before,
+.dex-region::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e5e5;
+}
+
+/* "다음 지역 불러오기" button: primary CTA from DESIGN.md. */
+.st-key-load_next_region {
+  align-self: center;
+  margin-top: 32px;
+}
+
+.stButton button {
+  background: #0a0a0a;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  height: 44px;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stButton button:hover,
+.stButton button:focus,
+.stButton button:active {
+  background: #1f1f1f;
+  color: #ffffff;
 }
 
 .dex-credit {
@@ -540,20 +593,52 @@ def render_title():
     )
 
 
+def render_regions(region_names):
+    """One card grid per region, with a region-name divider wherever the region changes.
+
+    Card colors keep cycling across regions, so the palette doesn't restart.
+    """
+    parts = []
+    index = 0
+    for n, region in enumerate(region_names):
+        if n > 0:
+            parts.append(f'<div class="dex-region">{html.escape(region)}</div>')
+        cards = []
+        for p in fetch_pokemon(*region_range(region)):
+            cards.append(render_card(index, p))
+            index += 1
+        parts.append(f'<div class="dex-grid">{"".join(cards)}</div>')
+    return "".join(parts)
+
+
+def load_next_region():
+    st.session_state.loaded_regions += 1
+
+
 st.set_page_config(page_title="포켓몬 도감", layout="wide")
 
-pokemon_list = fetch_pokemon()
+# How many regions (from the start of REGIONS) are shown. Starts with 관동 only.
+# st.html strips JavaScript, so the page can't detect reaching the bottom by
+# itself; a button at the end of the list loads the next region instead.
+if "loaded_regions" not in st.session_state:
+    st.session_state.loaded_regions = 1
 
-cards = "".join(render_card(i, p) for i, p in enumerate(pokemon_list))
-st.html(
-    STYLE
-    + DETAIL_STYLE
-    + hover_style()
-    + render_title()
-    + f'<div class="dex-grid">{cards}</div>'
-    + '<p class="dex-credit">데이터: PokeAPI</p>'
-)
+loaded = REGIONS[: st.session_state.loaded_regions]
 
+st.html(STYLE + DETAIL_STYLE + hover_style() + render_title() + render_regions(loaded))
+
+if len(loaded) < len(REGIONS):
+    next_region = REGIONS[len(loaded)]
+    st.button(
+        f"다음 지역 불러오기 ({next_region})",
+        key="load_next_region",
+        on_click=load_next_region,
+    )
+
+st.html('<p class="dex-credit">데이터: PokeAPI</p>')
+
+# Every Pokemon currently on the page (all loaded regions; fetch_pokemon is cached).
+pokemon_list = [p for region in loaded for p in fetch_pokemon(*region_range(region))]
 selected = selected_pokemon(pokemon_list)
 if selected is not None:
     show_detail(selected)
