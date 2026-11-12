@@ -478,7 +478,8 @@ def render_card(index, p):
     # A plain link: st.html strips JavaScript, so the click is passed to Python
     # through the ?pokemon=<id> query parameter, which opens the detail dialog.
     return (
-        f'<a class="clay-link" href="{html.escape(card_href(p["id"]))}" target="_self">'
+        f'<a class="clay-link" id="card-{p["id"]}" '
+        f'href="{html.escape(card_href(p["id"]))}" target="_self">'
         f'<div class="clay-card" style="background:{bg}; color:{fg};">'
         f"{image}"
         f'<div class="clay-no" style="color:{muted};">NO.{p["id"]:03d}</div>'
@@ -725,6 +726,30 @@ def render_regions(region_names):
     return "".join(parts)
 
 
+def scroll_to_card(pokemon_id):
+    """Scroll the page so the card #card-<id> is in view (issue #28).
+
+    Clicking a card is a link that reloads the page at the top, so behind the
+    detail dialog the list would sit at the top, and stay there after closing.
+    This brings the clicked card back into view once the grid has rendered.
+    Closing the dialog only reruns the script (no reload), so the position stays.
+    """
+    st.html(
+        "<script>"
+        "(function () {"
+        f"  const id = 'card-{int(pokemon_id)}';"
+        "  let tries = 0;"
+        "  (function find() {"
+        "    const el = document.getElementById(id);"
+        "    if (el) { el.scrollIntoView({block: 'center'}); return; }"
+        "    if (++tries < 50) setTimeout(find, 100);"
+        "  })();"
+        "})();"
+        "</script>",
+        unsafe_allow_javascript=True,
+    )
+
+
 def load_next_region():
     st.session_state.loaded_regions += 1
 
@@ -783,4 +808,5 @@ st.html('<p class="dex-credit">데이터: PokeAPI</p>')
 
 selected = selected_pokemon(pokemon_list)
 if selected is not None:
+    scroll_to_card(selected["id"])
     show_detail(selected)
