@@ -1,6 +1,6 @@
 import unittest
 
-from pokedex import REGIONS, region_range
+from pokedex import REGIONS, region_of, region_range
 
 
 class RegionRangeTest(unittest.TestCase):
@@ -33,6 +33,26 @@ class RegionOrderTest(unittest.TestCase):
             self.assertEqual(first, previous_last + 1, name)
             self.assertLessEqual(first, last, name)
             previous_last = last
+
+
+class RegionOfTest(unittest.TestCase):
+    """National dex number -> the region it belongs to (None if outside every region).
+
+    Used to load regions up to a Pokemon opened by ?pokemon=<id>, since opening
+    a card reloads the page and forgets how many regions were loaded.
+    """
+
+    def test_region_edges(self):
+        self.assertEqual(region_of(1), "관동")
+        self.assertEqual(region_of(151), "관동")
+        self.assertEqual(region_of(152), "성도")
+        self.assertEqual(region_of(200), "성도")
+        self.assertEqual(region_of(1025), "팔데아")
+
+    def test_outside_every_region_is_none(self):
+        self.assertIsNone(region_of(0))
+        self.assertIsNone(region_of(-5))
+        self.assertIsNone(region_of(1026))
 
 
 if __name__ == "__main__":
