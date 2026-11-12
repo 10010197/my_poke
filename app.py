@@ -12,7 +12,7 @@ TITLE_TEXT = "포켓몬 도감"
 # Card image hover effect. Switch between the two options from issue #15:
 #   "grayscale": image is gray, turns to color on hover
 #   "opacity":   image is at 0.3 opacity, turns to 1.0 on hover
-HOVER_STYLE = "grayscale"
+HOVER_STYLE = "opacity"
 HOVER_EFFECTS = {
     "grayscale": ("filter: grayscale(1);", "filter: grayscale(0);"),
     "opacity": ("opacity: 0.3;", "opacity: 1;"),
