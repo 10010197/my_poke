@@ -105,7 +105,8 @@ def radar_points(ratios, radius, cx, cy):
 def last_level_up_moves(moves, count=4):
     """The `count` moves learned last by leveling up, in level order.
 
-    `moves` is a list of {"name", "type", "level", "order", "version_group"}.
+    `moves` is a list of {"name", "type", "level", "order", "version_group"},
+    where "version_group" is a number that grows with release order.
     Learnsets differ by game, so only the latest version group is used. A move
     listed more than once counts at its highest level; ties go by "order".
     """
