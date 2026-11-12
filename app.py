@@ -1,8 +1,9 @@
+import html
+
 import requests
 import streamlit as st
 
 GRAPHQL_URL = "https://graphql.pokeapi.co/v1beta2"
-COLUMNS = 8
 
 QUERY = """
 query Gen1Pokedex {
@@ -59,22 +60,122 @@ def fetch_pokemon():
     return result
 
 
+# Clay feature-card palette, cycled card by card: (background, text, muted text)
+CARD_COLORS = [
+    ("#ff4d8b", "#ffffff", "rgba(255,255,255,0.8)"),  # brand-pink
+    ("#1a3a3a", "#ffffff", "rgba(255,255,255,0.7)"),  # brand-teal
+    ("#b8a4ed", "#0a0a0a", "#3a3a3a"),  # brand-lavender
+    ("#ffb084", "#0a0a0a", "#3a3a3a"),  # brand-peach
+    ("#e8b94a", "#0a0a0a", "#3a3a3a"),  # brand-ochre
+    ("#f5f0e0", "#0a0a0a", "#6a6a6a"),  # surface-card (cream)
+]
+
+STYLE = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+.stApp {
+  background: #fffaf0;
+  color: #3a3a3a;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.block-container {
+  max-width: 1280px;
+  padding-top: 96px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.dex-title {
+  font-family: inherit;
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  color: #0a0a0a;
+  margin: 0 0 32px;
+}
+
+.dex-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.clay-card {
+  border-radius: 24px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clay-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  display: block;
+}
+
+.clay-no {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 1.5px;
+}
+
+.clay-name {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: keep-all;
+}
+
+.clay-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.clay-badge {
+  background: #f5f0e0;
+  color: #0a0a0a;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 4px 12px;
+  border-radius: 9999px;
+}
+</style>
+"""
+
+
+def render_card(index, p):
+    bg, fg, muted = CARD_COLORS[index % len(CARD_COLORS)]
+    image = (
+        f'<img src="{html.escape(p["image"])}" alt="{html.escape(p["name"])}" loading="lazy">'
+        if p["image"]
+        else ""
+    )
+    badges = "".join(f'<span class="clay-badge">{html.escape(t)}</span>' for t in p["types"])
+    return (
+        f'<div class="clay-card" style="background:{bg}; color:{fg};">'
+        f"{image}"
+        f'<div class="clay-no" style="color:{muted};">NO.{p["id"]:03d}</div>'
+        f'<div class="clay-name">{html.escape(p["name"])}</div>'
+        f'<div class="clay-badges">{badges}</div>'
+        "</div>"
+    )
+
+
 st.set_page_config(page_title="포켓몬 도감", layout="wide")
-st.title("포켓몬 도감")
 
 pokemon_list = fetch_pokemon()
 
-for start in range(0, len(pokemon_list), COLUMNS):
-    cols = st.columns(COLUMNS)
-    for col, p in zip(cols, pokemon_list[start : start + COLUMNS]):
-        with col:
-            with st.container(border=True):
-                if p["image"]:
-                    st.markdown(
-                        f'<img src="{p["image"]}" alt="{p["name"]}" '
-                        f'style="width:100%; height:auto;">',
-                        unsafe_allow_html=True,
-                    )
-                st.caption(f"No.{p['id']:03d}")
-                st.markdown(f"**{p['name']}**")
-                st.write(" / ".join(p["types"]))
+cards = "".join(render_card(i, p) for i, p in enumerate(pokemon_list))
+st.html(
+    STYLE
+    + '<h1 class="dex-title">포켓몬 도감</h1>'
+    + f'<div class="dex-grid">{cards}</div>'
+)
