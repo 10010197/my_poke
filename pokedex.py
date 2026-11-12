@@ -78,6 +78,14 @@ def region_range(region_name):
         raise ValueError(f"알 수 없는 지역: {region_name}") from None
 
 
+def region_of(pokemon_id):
+    """Name of the region whose dex range holds `pokemon_id`, or None."""
+    for name, (first, last) in REGION_RANGES.items():
+        if first <= pokemon_id <= last:
+            return name
+    return None
+
+
 # ---- Detail dialog (issue #10) ----
 
 # Radar chart axes, clockwise from the top: (PokeAPI stat name, Korean label).
