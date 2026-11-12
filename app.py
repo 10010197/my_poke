@@ -70,7 +70,11 @@ for start in range(0, len(pokemon_list), COLUMNS):
         with col:
             with st.container(border=True):
                 if p["image"]:
-                    st.image(p["image"], width="stretch")
+                    st.markdown(
+                        f'<img src="{p["image"]}" alt="{p["name"]}" '
+                        f'style="width:100%; height:auto;">',
+                        unsafe_allow_html=True,
+                    )
                 st.caption(f"No.{p['id']:03d}")
                 st.markdown(f"**{p['name']}**")
                 st.write(" / ".join(p["types"]))
