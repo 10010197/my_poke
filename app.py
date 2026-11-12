@@ -246,6 +246,16 @@ STYLE = """
   gap: 16px;
 }
 
+/* Fewer columns on smaller screens (breakpoints from DESIGN.md):
+   PC 8, tablet (768-1024px) 4, mobile (under 768px) 2. */
+@media (max-width: 1024.98px) {
+  .dex-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767.98px) {
+  .dex-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+}
+
 .clay-card {
   border-radius: 24px;
   padding: 16px;
